@@ -10,12 +10,17 @@ import spacy
 import spacy.cli
 import networkx as nx
 from pyvis.network import Network
-import os
+import logging
 
+# Setup logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Initialize FastAPI
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# Download and load spaCy model
 spacy.cli.download("en_core_web_sm")
 nlp = spacy.load("en_core_web_sm")
 
@@ -27,9 +32,16 @@ def extract_text_from_pdf(pdf_file):
     return text
 
 def extract_text_from_url(url):
-    r = requests.get(url)
-    soup = BeautifulSoup(r.text, "html.parser")
-    return ' '.join(p.text for p in soup.find_all('p'))
+    logging.debug(f"Fetching content from URL: {url}")
+    try:
+        r = requests.get(url)
+        r.raise_for_status()  # Raise error for bad status codes
+        soup = BeautifulSoup(r.text, "html.parser")
+        text = ' '.join(p.text for p in soup.find_all('p'))
+        return text
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error fetching URL: {e}")
+        return None
 
 def generate_knowledge_graph(text):
     doc = nlp(text)
@@ -57,13 +69,28 @@ async def generate(
     try:
         text = ""
 
+        logging.debug(f"Received URL: {url}")
+        logging.debug(f"Received raw_text: {raw_text}")
+
         if file:
             contents = await file.read()
             text = extract_text_from_pdf(contents)
+            logging.debug("PDF content processed successfully.")
         elif url.strip():
+            logging.debug(f"Processing URL: {url.strip()}")
             text = extract_text_from_url(url.strip())
+            if text:
+                logging.debug(f"Extracted text from URL: {text[:100]}...")  # Log the first 100 chars
+            else:
+                return templates.TemplateResponse("index.html", {
+                    "request": request,
+                    "graph": False,
+                    "error": "Failed to extract text from the URL."
+                })
         elif raw_text.strip():
+            logging.debug(f"Processing raw text.")
             text = raw_text.strip()
+            logging.debug(f"Extracted raw text: {text[:100]}...")  # Log the first 100 chars
 
         if not text:
             return templates.TemplateResponse("index.html", {
@@ -76,6 +103,7 @@ async def generate(
         return templates.TemplateResponse("index.html", {"request": request, "graph": True})
 
     except Exception as e:
+        logging.error(f"Error: {str(e)}")
         return templates.TemplateResponse("index.html", {
             "request": request,
             "graph": False,

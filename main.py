@@ -72,26 +72,35 @@ async def generate(
         logging.debug(f"Received URL: {url}")
         logging.debug(f"Received raw_text: {raw_text}")
 
-        if file:
+        #  Only process the file if it's a real uploaded file
+        if file and file.filename:
             contents = await file.read()
-            text = extract_text_from_pdf(contents)
-            logging.debug("PDF content processed successfully.")
-        elif url.strip():
+            if contents:
+                text = extract_text_from_pdf(contents)
+                logging.debug("PDF content processed successfully.")
+            else:
+                logging.debug("Uploaded file is empty, skipping.")
+        
+        #  If no valid PDF text, try URL
+        if not text and url.strip():
             logging.debug(f"Processing URL: {url.strip()}")
             text = extract_text_from_url(url.strip())
             if text:
-                logging.debug(f"Extracted text from URL: {text[:100]}...")  # Log the first 100 chars
+                logging.debug(f"Extracted text from URL: {text[:100]}...")
             else:
                 return templates.TemplateResponse("index.html", {
                     "request": request,
                     "graph": False,
                     "error": "Failed to extract text from the URL."
                 })
-        elif raw_text.strip():
-            logging.debug(f"Processing raw text.")
-            text = raw_text.strip()
-            logging.debug(f"Extracted raw text: {text[:100]}...")  # Log the first 100 chars
 
+        #  If still no text, try raw_text
+        if not text and raw_text.strip():
+            logging.debug("Using raw text input.")
+            text = raw_text.strip()
+            logging.debug(f"Raw text used: {text[:100]}...")
+
+        #  Final check
         if not text:
             return templates.TemplateResponse("index.html", {
                 "request": request,

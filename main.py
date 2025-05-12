@@ -48,13 +48,36 @@ async def form(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/generate", response_class=HTMLResponse)
-async def generate(request: Request, file: UploadFile = File(None), url: str = Form(None), raw_text: str = Form(None)):
-    if file:
-        contents = await file.read()
-        text = extract_text_from_pdf(contents)
-    elif url:
-        text = extract_text_from_url(url)
-    else:
-        text = raw_text
-    generate_knowledge_graph(text)
-    return templates.TemplateResponse("index.html", {"request": request, "graph": True})
+async def generate(
+    request: Request,
+    file: UploadFile = File(None),
+    url: str = Form(""),
+    raw_text: str = Form("")
+):
+    try:
+        text = ""
+
+        if file:
+            contents = await file.read()
+            text = extract_text_from_pdf(contents)
+        elif url.strip():
+            text = extract_text_from_url(url.strip())
+        elif raw_text.strip():
+            text = raw_text.strip()
+
+        if not text:
+            return templates.TemplateResponse("index.html", {
+                "request": request,
+                "graph": False,
+                "error": "No valid content provided. Please upload a file, enter a URL, or paste text."
+            })
+
+        generate_knowledge_graph(text)
+        return templates.TemplateResponse("index.html", {"request": request, "graph": True})
+
+    except Exception as e:
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "graph": False,
+            "error": f"Error: {str(e)}"
+        })

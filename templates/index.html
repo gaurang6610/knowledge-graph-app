@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Knowledge Graph Generator</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h2>Knowledge Graph Generator</h2>
+    <form action="/generate" method="post" enctype="multipart/form-data">
+        <label>Upload PDF:</label>
+        <input type="file" name="file"><br><br>
+        <label>or Enter URL:</label>
+        <input type="text" name="url"><br><br>
+        <label>or Paste Text:</label><br>
+        <textarea name="raw_text" rows="10" cols="50"></textarea><br><br>
+        <button type="submit">Generate Graph</button>
+    </form>
+
+    {% if graph %}
+    <h3>Generated Graph:</h3>
+    <iframe src="/static/graph.html" width="100%" height="600px"></iframe>
+    {% endif %}
+</body>
+</html>
